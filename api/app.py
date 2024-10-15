@@ -3,9 +3,14 @@ import time
 import uuid
 from flask import Flask, jsonify, request
 from sqlalchemy.exc import OperationalError
-from models import db, User, Company, UserCompany, Role
+from models import db, User, Company, UserCompany, Role, Service, Appointment
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
+
+HOURS_AVAILABLE_MORNING = [(8, 0), (9, 0), (10, 0), (11, 0), (12, 0)]
+HOURS_AVAILABLE_AFTERNOON = [(14, 0), (15, 0), (16, 0), (17, 0)]
+APPOINTMENT_DURATION = timedelta(hours=1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -58,10 +63,21 @@ def create_company_with_admin():
 @app.route('/companies/<string:company_identifier>/clients', methods=['POST'])
 def create_client_for_company(company_identifier):
     data = request.get_json()
-    username = data['username']
+    name = data['name']
+    lastname = data['lastname']
+    nit = data['nit']
+    cellphone = data['cellphone']
     email = data['email']
+    identifier = str(uuid.uuid4())
 
-    new_user = User(username=username, email=email)
+    new_user = User(
+        identifier=identifier,
+        name=name,
+        lastname=lastname,
+        nit=nit,
+        cellphone=cellphone,
+        email=email
+    )
     db.session.add(new_user)
     db.session.commit()
 
@@ -94,11 +110,21 @@ def get_company_by_identifier(company_identifier):
 @app.route('/users', methods=['POST'])
 def create_user():
     data = request.get_json()
-    username = data['username']
+    name = data['name']
+    lastname = data['lastname']
+    nit = data['nit']
+    cellphone = data['cellphone']
     email = data['email']
     identifier = str(uuid.uuid4())
 
-    new_user = User(identifier=identifier, username=username, email=email)
+    new_user = User(
+        identifier=identifier,
+        name=name,
+        lastname=lastname,
+        nit=nit,
+        cellphone=cellphone,
+        email=email
+    )
     db.session.add(new_user)
     db.session.commit()
 
@@ -116,6 +142,56 @@ def list_companies():
     companies = Company.query.all()
     return jsonify([{'id': company.id, 'name': company.name, 'identifier': company.identifier} for company in companies]), 200
 
+# Ruta para crear servicios en una compañia
+@app.route('/company/<string:company_identifier>/services', methods=['POST'])
+def create_service(company_identifier):
+    data = request.get_json()
+    title = data['title']
+    description = data['description']
+    price = data['price']
+    identifier = str(uuid.uuid4())
+
+    new_service = Service(
+        identifier=identifier,
+        title=title,
+        description=description,
+        price=price,
+        company_id=company_identifier
+    )
+
+    db.session.add(new_service)
+    db.session.commit()
+
+    return jsonify({"message": "Service created", "identifier": new_service.identifier}), 201
+
+@app.route('/company/<string:company_identifier>/appointment', methods=['POST'])
+def create_appointment(company_identifier):
+    data = request.get_json()
+    date_str = data['date']
+    hour_str = data['hour']
+    user_id = data['user_id']
+    service_id = data['service_id']
+    identifier = str(uuid.uuid4())
+
+    try:
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        hour = datetime.strptime(hour_str, '%H-%M').time()
+    except ValueError:
+        return jsonify({"error":"Formato de fecha incorrecto"}), 400
+
+    new_appointment = Appointment(
+        identifier=identifier,
+        date=date,
+        hour=hour,
+        user_id=user_id,
+        company_id=company_identifier,
+        service_id=service_id
+    )
+
+    db.session.add(new_appointment)
+    db.session.commit()
+
+    return jsonify({"message": "Appointment Created"}), 201
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
