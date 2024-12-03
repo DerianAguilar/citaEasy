@@ -5,3 +5,4 @@ mysql-connector-python==8.0.26
 requests==2.26.0
 pyTelegramBotAPI==4.0.0
 Werkzeug==2.1.2
+flask-jwt-extended==4.4.4

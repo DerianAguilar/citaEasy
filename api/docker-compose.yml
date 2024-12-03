@@ -16,7 +16,8 @@ services:
       - citaeasy_network
 
   api:
-    build: .
+    image: derianaguilarfsc/citaeasy_api:latest
+    container_name: citaeasy
     environment:
       - SQLALCHEMY_DATABASE_URI=mysql+mysqlconnector://citaeasy:cita_pass@db/citaeasydb
     ports:
